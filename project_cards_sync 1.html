@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="theme-color" content="#2563eb" />
+<title>Project Cards</title>
+<style>
+:root{--bg:#f4f7fb;--surface:#fff;--surface2:#eef3f9;--text:#172033;--muted:#687386;--line:#dce3ec;--brand:#2563eb;--shadow:0 10px 30px rgba(20,35,70,.09);--radius:18px}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,Segoe UI,system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);-webkit-text-size-adjust:100%}
+button,input,select,textarea{font:inherit}
+.topbar{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:12px;padding:max(14px,env(safe-area-inset-top)) clamp(16px,4vw,42px) 14px;background:rgba(255,255,255,.94);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px;white-space:nowrap}
+.logo{width:34px;height:34px;border-radius:11px;background:linear-gradient(145deg,#2563eb,#7c3aed);display:grid;place-items:center;color:#fff}
+.top-spacer{flex:1}
+.icon-btn,.btn{border:0;border-radius:11px;cursor:pointer;transition:.18s}
+.icon-btn{width:40px;height:40px;background:var(--surface2);color:var(--text);font-size:18px}
+.icon-btn:hover,.btn:hover{filter:brightness(.97)}
+.btn{padding:10px 15px;font-weight:700;background:var(--brand);color:#fff}
+.btn.secondary{background:var(--surface2);color:var(--text)}
+.btn.danger{background:#fee2e2;color:#991b1b}
+.btn.small{padding:7px 10px;font-size:13px}
+.btn.block{width:100%;padding:13px}
+.container{max-width:1200px;margin:auto;padding:30px clamp(16px,4vw,42px) calc(60px + env(safe-area-inset-bottom))}
+.syncbar{display:flex;align-items:center;gap:10px;justify-content:center;padding:8px 16px;font-size:13px;font-weight:600;background:#eef3f9;color:var(--muted);border-bottom:1px solid var(--line)}
+.syncbar.warn{background:#fef3c7;color:#92400e}
+.syncbar.err{background:#fee2e2;color:#991b1b}
+.syncbar.ok{background:#dcfce7;color:#166534}
+.dot{width:8px;height:8px;border-radius:50%;background:currentColor;flex:0 0 auto}
+.breadcrumb{display:flex;align-items:center;gap:7px;font-size:14px;color:var(--muted);margin-bottom:20px;flex-wrap:wrap}
+.crumb{background:none;border:0;padding:0;color:var(--brand);cursor:pointer}
+.hero{display:flex;align-items:end;justify-content:space-between;gap:20px;margin-bottom:26px}
+.eyebrow{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--brand);font-weight:800}
+.hero h1{margin:4px 0 7px;font-size:clamp(27px,5vw,42px);line-height:1.08}
+.hero p{margin:0;color:var(--muted);max-width:650px}
+.hero-actions{display:flex;gap:9px;flex-wrap:wrap}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:25px}
+.stat{background:var(--surface);border:1px solid var(--line);padding:16px;border-radius:16px}
+.stat .n{font-size:25px;font-weight:800}
+.stat .l{color:var(--muted);font-size:13px;margin-top:2px}
+.toolbar{display:flex;gap:10px;margin:0 0 20px}
+.search{flex:1;position:relative}
+.search input{width:100%;padding:12px 14px 12px 40px;border:1px solid var(--line);border-radius:12px;background:var(--surface);outline:none}
+.search:before{content:'\2315';position:absolute;left:14px;top:8px;font-size:21px;color:var(--muted)}
+select{padding:11px;border:1px solid var(--line);border-radius:12px;background:#fff}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:18px}
+.card{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);cursor:pointer;transition:.2s;overflow:hidden}
+.card:hover{transform:translateY(-3px);border-color:#b8c7dc}
+.card:before{content:'';position:absolute;top:0;left:0;right:0;height:5px;background:var(--accent,var(--brand))}
+.card-head{display:flex;align-items:start;gap:12px}
+.card-icon{width:44px;height:44px;border-radius:13px;background:color-mix(in srgb,var(--accent,var(--brand)) 13%,white);color:var(--accent,var(--brand));display:grid;place-items:center;font-size:20px;flex:0 0 auto}
+.card-title{font-size:18px;font-weight:800;margin:0;word-break:break-word}
+.desc{color:var(--muted);font-size:14px;margin:5px 0 0;min-height:21px}
+.menu{margin-left:auto;border:0;background:transparent;font-size:22px;cursor:pointer;color:var(--muted);padding:0 4px}
+.progress-row{display:flex;justify-content:space-between;font-size:13px;margin-top:20px}
+.progress{height:8px;background:#e7ebf2;border-radius:99px;overflow:hidden;margin-top:7px}
+.progress>span{display:block;height:100%;border-radius:99px;background:var(--accent,var(--brand));transition:.3s}
+.metrics{display:flex;gap:12px;margin-top:18px;padding-top:15px;border-top:1px solid var(--line);font-size:13px;color:var(--muted);flex-wrap:wrap}
+.metric strong{color:var(--text)}
+.empty{grid-column:1/-1;text-align:center;background:var(--surface);border:2px dashed var(--line);border-radius:var(--radius);padding:55px 20px}
+.empty-icon{font-size:38px}
+.empty h3{margin:8px 0}
+.empty p{color:var(--muted);margin:0 0 18px}
+.list{display:grid;gap:12px}
+.item{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:15px;padding:15px 17px}
+.check{width:23px;height:23px;accent-color:var(--brand);cursor:pointer}
+.item-title{font-weight:750}
+.item.done .item-title{text-decoration:line-through;color:var(--muted)}
+.item-meta{font-size:13px;color:var(--muted);margin-top:4px;display:flex;gap:12px;flex-wrap:wrap}
+.item-actions{display:flex;gap:6px;align-items:center}
+.price{font-weight:800}
+.modal-backdrop{position:fixed;inset:0;z-index:100;background:rgba(15,23,42,.48);display:none;align-items:center;justify-content:center;padding:18px}
+.modal-backdrop.open{display:flex}
+.modal{width:min(530px,100%);max-height:88vh;overflow:auto;background:var(--surface);border-radius:20px;padding:23px;box-shadow:0 25px 80px rgba(0,0,0,.25)}
+.modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.modal h2{margin:0;font-size:21px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.field.full{grid-column:1/-1}
+.field label{display:block;font-size:13px;font-weight:750;margin-bottom:6px}
+.field input,.field textarea,.field select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;outline:none;background:#fff}
+.field textarea{min-height:80px;resize:vertical}
+.modal-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:20px}
+.toast{position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom));transform:translate(-50%,15px);z-index:200;background:#172033;color:#fff;padding:12px 18px;border-radius:11px;opacity:0;pointer-events:none;transition:.2s;max-width:90vw;text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.hidden{display:none!important}
+.accent-picker{display:flex;gap:8px;flex-wrap:wrap}
+.accent-dot{width:28px;height:28px;border-radius:50%;border:3px solid #fff;outline:1px solid var(--line);cursor:pointer}
+.accent-dot.selected{outline:3px solid #111827}
+.danger-zone{margin-top:25px;padding-top:20px;border-top:1px solid var(--line)}
+.auth-wrap{min-height:70vh;display:grid;place-items:center;padding:20px}
+.auth-card{width:min(430px,100%);background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:28px;box-shadow:var(--shadow)}
+.auth-card h1{margin:12px 0 6px;font-size:26px}
+.auth-card p.sub{margin:0 0 22px;color:var(--muted)}
+.auth-tabs{display:flex;gap:6px;background:var(--surface2);padding:5px;border-radius:12px;margin-bottom:18px}
+.auth-tabs button{flex:1;border:0;background:transparent;padding:9px;border-radius:9px;font-weight:700;cursor:pointer;color:var(--muted)}
+.auth-tabs button.active{background:#fff;color:var(--text);box-shadow:0 2px 6px rgba(0,0,0,.07)}
+.note{font-size:13px;color:var(--muted);margin-top:16px;line-height:1.5}
+.setup{background:#fffbeb;border:1px solid #fde68a;border-radius:14px;padding:16px;font-size:13px;line-height:1.6;color:#78350f;margin-top:18px}
+.setup code{background:#fff;padding:1px 5px;border-radius:5px;border:1px solid #fde68a}
+@media(max-width:700px){
+.stats{grid-template-columns:1fr 1fr}
+.hero{align-items:stretch;flex-direction:column}
+.hero-actions .btn{flex:1}
+.topbar .btn-label{display:none}
+.toolbar{flex-wrap:wrap}
+.toolbar .search{flex-basis:100%}
+.item{grid-template-columns:auto 1fr}
+.item-actions{grid-column:2;justify-content:flex-start}
+.form-grid{grid-template-columns:1fr}
+.field.full{grid-column:auto}
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="logo">&#9670;</span> Project Cards</div>
+  <div class="top-spacer"></div>
+  <button class="icon-btn" title="Export backup" onclick="exportData()">&#8681;</button>
+  <button class="icon-btn" title="Import backup" onclick="document.getElementById('importFile').click()">&#8679;</button>
+  <input id="importFile" type="file" accept="application/json" hidden onchange="importData(event)">
+  <button class="icon-btn" id="accountBtn" title="Account" onclick="openAccountModal()">&#9675;</button>
+  <button class="btn" onclick="primaryAdd()">&#65291; <span class="btn-label" id="topAddLabel">New project</span></button>
+</header>
+<div class="syncbar hidden" id="syncbar"><span class="dot"></span><span id="syncText"></span></div>
+<main class="container" id="main"></main>
+<div class="modal-backdrop" id="modalBackdrop" onclick="backdropClose(event)"><div class="modal" id="modal"></div></div>
+<div class="toast" id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+/* =====================================================================
+   CONFIGURATION - paste your Supabase project values here
+   ===================================================================== */
+const SUPABASE_URL      = "";   // e.g. "https://abcdefgh.supabase.co"
+const SUPABASE_ANON_KEY = "";   // publishable / anon key (safe in the browser WITH RLS enabled)
+/* ===================================================================== */
+
+const LOCAL_KEY = 'projectCards.v2';
+const colors = ['#2563eb','#7c3aed','#db2777','#d97706','#16a34a','#0891b2','#dc2626'];
+const cloudEnabled = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
+let sb = null, session = null, channel = null, pushTimer = null, pulling = false;
+let state = { updatedAt: 0, projects: [] };
+let route = { page:'projects', projectId:null, categoryId:null };
+let query = '', authTab = 'signin';
+
+/* ---------------------- helpers ---------------------- */
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>'"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]; }); }
+function money(n){ return new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(n)||0); }
+function completion(items){ items = items || []; return items.length ? Math.round(items.filter(function(x){return x.done;}).length / items.length * 100) : 0; }
+function allItems(p){ return (p.categories||[]).reduce(function(a,c){ return a.concat(c.items||[]); }, []); }
+function project(){ return state.projects.find(function(x){ return x.id === route.projectId; }); }
+function category(){ var p = project(); return p && (p.categories||[]).find(function(x){ return x.id === route.categoryId; }); }
+function lineTotal(i){ return (Number(i.qty)||1) * (Number(i.price)||0); }
+function partsTotal(items){ return (items||[]).reduce(function(s,i){ return s + lineTotal(i); }, 0); }
+
+/* ---------------------- seed + local storage ---------------------- */
+function seed(){
+  return { updatedAt: Date.now(), projects: [{
+    id: uid(), name:'Workshop Upgrade', description:'Sample project - edit or delete it', color:'#2563eb', created: Date.now(),
+    categories: [
+      { id: uid(), name:'Tasks', type:'tasks', description:'Work to complete', color:'#7c3aed', items:[
+        { id: uid(), name:'Measure available bench space', done:true,  notes:'' },
+        { id: uid(), name:'Finalize layout',                done:false, notes:'Check outlet locations' }]},
+      { id: uid(), name:'Parts to Buy', type:'parts', description:'Materials to purchase', color:'#16a34a', items:[
+        { id: uid(), name:'M8 mounting bolts', done:false, qty:12, price:1.25, notes:'Zinc plated' },
+        { id: uid(), name:'Cable tray',        done:true,  qty:2,  price:28,   notes:'' }]}
+    ]}]};
+}
+function loadLocal(){
+  try { var raw = JSON.parse(localStorage.getItem(LOCAL_KEY)); if (raw && Array.isArray(raw.projects)) return raw; } catch(e){}
+  return seed();
+}
+function saveLocal(){ try { localStorage.setItem(LOCAL_KEY, JSON.stringify(state)); } catch(e){} }
+
+/* Single mutation entry point: stamp, persist locally, re-render, queue cloud push. */
+function commit(msg){
+  state.updatedAt = Date.now();
+  saveLocal();
+  render();
+  if (msg) toast(msg);
+  queuePush();
+}
+
+/* ---------------------- cloud sync ---------------------- */
+function setSync(cls, text){
+  var bar = document.getElementById('syncbar');
+  bar.className = 'syncbar ' + (cls || '');
+  document.getElementById('syncText').textContent = text || '';
+  bar.classList.toggle('hidden', !text);
+}
+async function initCloud(){
+  if (!cloudEnabled){
+    setSync('warn','Local only - data stays in this browser. Add your Supabase keys to sync across devices.');
+    return;
+  }
+  if (!window.supabase){
+    setSync('err','Could not load the Supabase library - check your internet connection.');
+    return;
+  }
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  var res = await sb.auth.getSession();
+  session = res.data.session;
+  sb.auth.onAuthStateChange(function(_e, s){
+    var oldId = session && session.user && session.user.id;
+    var newId = s && s.user && s.user.id;
+    session = s;
+    if (oldId !== newId){
+      if (s) afterSignIn();
+      else { unsubscribe(); state = loadLocal(); render(); }
+    }
+  });
+  if (session) await afterSignIn(); else render();
+}
+async function afterSignIn(){
+  setSync('', 'Syncing...');
+  await pull();
+  subscribe();
+  render();
+}
+async function pull(){
+  if (!session) return;
+  pulling = true;
+  try {
+    var r = await sb.from('app_state').select('data').eq('user_id', session.user.id).maybeSingle();
+    if (r.error) throw r.error;
+    var local = loadLocal();
+    var localNewer = true;
+    if (r.data){
+      var remote = r.data.data || { updatedAt:0, projects:[] };
+      localNewer = Number(local.updatedAt||0) > Number(remote.updatedAt||0);
+      state = localNewer ? local : remote;
+    } else {
+      state = local; state.updatedAt = Date.now();
+    }
+    saveLocal();
+    pulling = false;
+    if (localNewer) await push(true);
+    setSync('ok','Synced as ' + session.user.email);
+    setTimeout(function(){ if (session) setSync('',''); }, 2500);
+  } catch(e){
+    setSync('err','Sync error: ' + (e.message || e));
+  }
+  pulling = false;
+}
+function queuePush(){
+  if (!session || pulling) return;
+  setSync('','Saving...');
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(function(){ push(false); }, 700);
+}
+async function push(quiet){
+  if (!session) return;
+  try {
+    var r = await sb.from('app_state').upsert({
+      user_id: session.user.id,
+      data: state,
+      updated_at: new Date().toISOString()
+    }, { onConflict:'user_id' });
+    if (r.error) throw r.error;
+    if (!quiet){ setSync('ok','All changes saved'); setTimeout(function(){ if (session) setSync('',''); }, 1800); }
+  } catch(e){
+    setSync('err','Could not save to cloud: ' + (e.message || e));
+  }
+}
+function subscribe(){
+  unsubscribe();
+  channel = sb.channel('app_state_sync').on('postgres_changes',
+    { event:'*', schema:'public', table:'app_state', filter:'user_id=eq.' + session.user.id },
+    function(payload){
+      var remote = payload['new'] && payload['new'].data;
+      if (remote && Number(remote.updatedAt||0) > Number(state.updatedAt||0)){
+        state = remote; saveLocal(); render();
+        setSync('ok','Updated from another device');
+        setTimeout(function(){ if (session) setSync('',''); }, 2200);
+      }
+    }).subscribe();
+}
+function unsubscribe(){ if (channel && sb){ sb.removeChannel(channel); channel = null; } }
+
+/* ---------------------- auth screen ---------------------- */
+function authView(){
+  return '<div class="auth-wrap"><div class="auth-card">' +
+    '<span class="logo" style="width:44px;height:44px;font-size:20px">&#9670;</span>' +
+    '<h1>Project Cards</h1><p class="sub">Sign in so your projects follow you across every browser and device.</p>' +
+    '<div class="auth-tabs">' +
+      '<button class="' + (authTab==='signin'?'active':'') + '" onclick="authTab=\'signin\';render()">Sign in</button>' +
+      '<button class="' + (authTab==='signup'?'active':'') + '" onclick="authTab=\'signup\';render()">Create account</button>' +
+    '</div>' +
+    '<div class="field full"><label>Email</label><input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com"></div>' +
+    '<div class="field full" style="margin-top:12px"><label>Password</label><input id="authPass" type="password" placeholder="At least 6 characters" onkeydown="if(event.key===\'Enter\')doAuth()"></div>' +
+    '<button class="btn block" style="margin-top:18px" onclick="doAuth()">' + (authTab==='signin'?'Sign in':'Create account') + '</button>' +
+    '<p class="note">Your data is stored under your own account and is not visible to anyone else, even though the page itself is public.</p>' +
+    '</div></div>';
+}
+async function doAuth(){
+  var email = document.getElementById('authEmail').value.trim();
+  var pass  = document.getElementById('authPass').value;
+  if (!email || !pass) return toast('Enter an email and password');
+  try {
+    var r = authTab === 'signin'
+      ? await sb.auth.signInWithPassword({ email: email, password: pass })
+      : await sb.auth.signUp({ email: email, password: pass });
+    if (r.error) throw r.error;
+    if (authTab === 'signup' && !r.data.session) toast('Check your email to confirm the account, then sign in.');
+  } catch(e){ toast(e.message || 'Sign in failed'); }
+}
+function openAccountModal(){
+  if (!cloudEnabled){
+    return modal('<div class="modal-head"><h2>Cloud sync is off</h2><button class="icon-btn" onclick="closeModal()">&times;</button></div>' +
+      '<p class="note" style="margin-top:0">This copy is running in local-only mode, so projects live in this browser alone.</p>' +
+      '<div class="setup"><strong>To turn on sync:</strong> create a free Supabase project, then open this HTML file in a text editor and fill in <code>SUPABASE_URL</code> and <code>SUPABASE_ANON_KEY</code> near the top of the script. Re-upload the file and sign in.</div>' +
+      '<div class="modal-actions"><button class="btn" onclick="closeModal()">Close</button></div>');
+  }
+  var who = session ? esc(session.user.email) : 'Not signed in';
+  modal('<div class="modal-head"><h2>Account</h2><button class="icon-btn" onclick="closeModal()">&times;</button></div>' +
+    '<p class="note" style="margin-top:0">Signed in as <strong>' + who + '</strong></p>' +
+    (session ? '<button class="btn secondary block" style="margin-top:14px" onclick="forcePull()">Refresh from cloud</button>' +
+               '<div class="danger-zone"><button class="btn danger small" onclick="signOut()">Sign out</button></div>' : '') +
+    '<div class="modal-actions"><button class="btn" onclick="closeModal()">Close</button></div>');
+}
+async function forcePull(){ closeModal(); await pull(); render(); toast('Refreshed'); }
+async function signOut(){ closeModal(); unsubscribe(); await sb.auth.signOut(); session = null; state = loadLocal(); render(); }
+
+/* ---------------------- routing + rendering ---------------------- */
+function setRoute(page, pid, cid){
+  route = { page: page, projectId: pid || null, categoryId: cid || null };
+  query = ''; render(); window.scrollTo(0,0);
+}
+function render(){
+  var main = document.getElementById('main');
+  var needsAuth = cloudEnabled && !session;
+  document.getElementById('accountBtn').innerHTML = session ? '&#9679;' : '&#9675;';
+  var tools = document.querySelectorAll('.topbar .btn, .topbar .icon-btn');
+  for (var k = 0; k < tools.length; k++){
+    if (tools[k].id !== 'accountBtn') tools[k].classList.toggle('hidden', needsAuth);
+  }
+  if (needsAuth){ main.innerHTML = authView(); return; }
+  document.getElementById('topAddLabel').textContent =
+    route.page === 'projects' ? 'New project' : route.page === 'categories' ? 'New list' : 'New item';
+  if (route.page === 'categories' && !project()) route = { page:'projects', projectId:null, categoryId:null };
+  if (route.page === 'items' && !category())     route = { page:'projects', projectId:null, categoryId:null };
+  if (route.page === 'projects')        main.innerHTML = projectsView();
+  else if (route.page === 'categories') main.innerHTML = categoriesView(project());
+  else                                  main.innerHTML = itemsView(project(), category());
+}
+function projectsView(){
+  var ps = state.projects.filter(function(p){ return p.name.toLowerCase().indexOf(query.toLowerCase()) > -1; });
+  var items = state.projects.reduce(function(a,p){ return a.concat(allItems(p)); }, []);
+  return '<div class="hero"><div><div class="eyebrow">Dashboard</div><h1>Your projects</h1>' +
+    '<p>Open a project to reach its task lists, parts lists and other categories.</p></div>' +
+    '<div class="hero-actions"><button class="btn" onclick="openProjectModal()">&#65291; New project</button></div></div>' +
+    statBlock([[state.projects.length,'Projects'],[items.length,'Total items'],
+               [items.filter(function(i){return i.done;}).length,'Completed'],[completion(items)+'%','Overall progress']]) +
+    searchBar('Search projects...') +
+    '<div class="grid">' + (ps.length ? ps.map(projectCard).join('') :
+      emptyState('&#9638;','No projects yet','Create a project to start organizing related lists.','openProjectModal()','Create project')) + '</div>';
+}
+function projectCard(p){
+  var items = allItems(p), pct = completion(items);
+  var parts = (p.categories||[]).filter(function(c){ return c.type === 'parts'; }).reduce(function(a,c){ return a.concat(c.items||[]); }, []);
+  return '<article class="card" style="--accent:' + p.color + '" onclick="setRoute(\'categories\',\'' + p.id + '\')">' +
+    '<div class="card-head"><div class="card-icon">&#9638;</div><div><h3 class="card-title">' + esc(p.name) + '</h3>' +
+    '<p class="desc">' + esc(p.description || 'No description') + '</p></div>' +
+    '<button class="menu" title="Edit project" onclick="event.stopPropagation();openProjectModal(\'' + p.id + '\')">&#8943;</button></div>' +
+    '<div class="progress-row"><span>Project progress</span><strong>' + pct + '%</strong></div>' +
+    '<div class="progress"><span style="width:' + pct + '%"></span></div>' +
+    '<div class="metrics"><span class="metric"><strong>' + (p.categories||[]).length + '</strong> lists</span>' +
+    '<span class="metric"><strong>' + items.filter(function(i){ return !i.done; }).length + '</strong> open</span>' +
+    (parts.length ? '<span class="metric"><strong>' + money(partsTotal(parts)) + '</strong> parts</span>' : '') + '</div></article>';
+}
+function categoriesView(p){
+  var cs = (p.categories||[]).filter(function(c){ return c.name.toLowerCase().indexOf(query.toLowerCase()) > -1; });
+  var items = allItems(p);
+  return '<div class="breadcrumb"><button class="crumb" onclick="setRoute(\'projects\')">Projects</button><span>&rsaquo;</span><span>' + esc(p.name) + '</span></div>' +
+    '<div class="hero"><div><div class="eyebrow">Project</div><h1>' + esc(p.name) + '</h1>' +
+    '<p>' + esc(p.description || 'Choose a list to open its items.') + '</p></div>' +
+    '<div class="hero-actions"><button class="btn secondary" onclick="openProjectModal(\'' + p.id + '\')">Edit project</button>' +
+    '<button class="btn" onclick="openCategoryModal()">&#65291; New list</button></div></div>' +
+    statBlock([[(p.categories||[]).length,'Lists'],[items.length,'Items'],
+               [items.filter(function(i){return i.done;}).length,'Completed'],[completion(items)+'%','Progress']]) +
+    searchBar('Search lists...') +
+    '<div class="grid">' + (cs.length ? cs.map(categoryCard).join('') :
+      emptyState('&#9776;','No lists yet','Add a task list, a parts list, or any custom checklist.','openCategoryModal()','Add a list')) + '</div>';
+}
+function categoryCard(c){
+  var pct = completion(c.items), isParts = c.type === 'parts';
+  return '<article class="card" style="--accent:' + c.color + '" onclick="setRoute(\'items\',\'' + route.projectId + '\',\'' + c.id + '\')">' +
+    '<div class="card-head"><div class="card-icon">' + (isParts ? '&#128722;' : '&#10003;') + '</div>' +
+    '<div><h3 class="card-title">' + esc(c.name) + '</h3><p class="desc">' + esc(c.description || 'No description') + '</p></div>' +
+    '<button class="menu" title="Edit list" onclick="event.stopPropagation();openCategoryModal(\'' + c.id + '\')">&#8943;</button></div>' +
+    '<div class="progress-row"><span>' + (isParts ? 'Purchased' : 'Completed') + '</span><strong>' + pct + '%</strong></div>' +
+    '<div class="progress"><span style="width:' + pct + '%"></span></div>' +
+    '<div class="metrics"><span class="metric"><strong>' + (c.items||[]).length + '</strong> items</span>' +
+    '<span class="metric"><strong>' + (c.items||[]).filter(function(i){ return !i.done; }).length + '</strong> remaining</span>' +
+    (isParts ? '<span class="metric"><strong>' + money(partsTotal(c.items)) + '</strong> total</span>' : '') + '</div></article>';
+}
+function itemsView(p, c){
+  var items = (c.items||[]).filter(function(i){ return i.name.toLowerCase().indexOf(query.toLowerCase()) > -1; });
+  var isParts = c.type === 'parts';
+  return '<div class="breadcrumb"><button class="crumb" onclick="setRoute(\'projects\')">Projects</button><span>&rsaquo;</span>' +
+    '<button class="crumb" onclick="setRoute(\'categories\',\'' + p.id + '\')">' + esc(p.name) + '</button><span>&rsaquo;</span><span>' + esc(c.name) + '</span></div>' +
+    '<div class="hero"><div><div class="eyebrow">' + (isParts ? 'Parts list' : 'Task list') + '</div><h1>' + esc(c.name) + '</h1>' +
+    '<p>' + esc(c.description || 'Manage the items in this list.') + '</p></div>' +
+    '<div class="hero-actions"><button class="btn secondary" onclick="openCategoryModal(\'' + c.id + '\')">Edit list</button>' +
+    '<button class="btn" onclick="openItemModal()">&#65291; New item</button></div></div>' +
+    statBlock([[(c.items||[]).length,'Total items'],
+               [(c.items||[]).filter(function(i){return i.done;}).length, isParts ? 'Purchased' : 'Completed'],
+               [(c.items||[]).filter(function(i){return !i.done;}).length,'Remaining'],
+               [isParts ? money(partsTotal(c.items)) : completion(c.items)+'%', isParts ? 'Estimated total' : 'Progress']]) +
+    '<div class="toolbar"><div class="search"><input placeholder="Search items..." value="' + esc(query) + '" oninput="query=this.value;render()"></div>' +
+    '<select onchange="filterItems(this.value)"><option value="all">All items</option><option value="open">Open</option><option value="done">Completed</option></select></div>' +
+    '<div class="list">' + (items.length ? items.map(function(i){ return itemRow(i,c); }).join('') :
+      emptyState('&#10003;','Nothing here yet','Add the first item to this list.','openItemModal()','Add item')) + '</div>';
+}
+function itemRow(i, c){
+  var isParts = c.type === 'parts';
+  return '<div class="item ' + (i.done ? 'done' : '') + '" data-status="' + (i.done ? 'done' : 'open') + '">' +
+    '<input class="check" type="checkbox" ' + (i.done ? 'checked' : '') + ' onchange="toggleItem(\'' + i.id + '\')">' +
+    '<div><div class="item-title">' + esc(i.name) + '</div><div class="item-meta">' +
+    (isParts ? '<span>Qty: ' + (Number(i.qty)||1) + '</span><span>Unit: ' + money(i.price) + '</span>' : '') +
+    (i.notes ? '<span>' + esc(i.notes) + '</span>' : '') + '</div></div>' +
+    '<div class="item-actions">' + (isParts ? '<div class="price">' + money(lineTotal(i)) + '</div>' : '') +
+    '<button class="icon-btn" title="Edit" onclick="openItemModal(\'' + i.id + '\')">&#9998;</button></div></div>';
+}
+function statBlock(rows){
+  return '<div class="stats">' + rows.map(function(r){
+    return '<div class="stat"><div class="n">' + r[0] + '</div><div class="l">' + r[1] + '</div></div>'; }).join('') + '</div>';
+}
+function searchBar(ph){
+  return '<div class="toolbar"><div class="search"><input placeholder="' + ph + '" value="' + esc(query) + '" oninput="query=this.value;render()"></div></div>';
+}
+function emptyState(icon, title, body, action, label){
+  return '<div class="empty"><div class="empty-icon">' + icon + '</div><h3>' + title + '</h3><p>' + body + '</p>' +
+    '<button class="btn" onclick="' + action + '">' + label + '</button></div>';
+}
+function filterItems(v){
+  var rows = document.querySelectorAll('.item[data-status]');
+  for (var k = 0; k < rows.length; k++){
+    rows[k].classList.toggle('hidden', v !== 'all' && rows[k].dataset.status !== v);
+  }
+}
+function primaryAdd(){
+  if (route.page === 'projects') openProjectModal();
+  else if (route.page === 'categories') openCategoryModal();
+  else openItemModal();
+}
+
+/* ---------------------- modals + CRUD ---------------------- */
+function modal(html){ document.getElementById('modal').innerHTML = html; document.getElementById('modalBackdrop').classList.add('open'); }
+function closeModal(){ document.getElementById('modalBackdrop').classList.remove('open'); }
+function backdropClose(e){ if (e.target.id === 'modalBackdrop') closeModal(); }
+function colorPicker(sel){
+  return '<div class="accent-picker">' + colors.map(function(x){
+    return '<span class="accent-dot ' + (x === sel ? 'selected' : '') + '" style="background:' + x + '" onclick="pickColor(this,\'' + x + '\')"></span>';
+  }).join('') + '</div><input type="hidden" id="color" value="' + sel + '">';
+}
+function pickColor(el, c){
+  var dots = document.querySelectorAll('.accent-dot');
+  for (var k = 0; k < dots.length; k++) dots[k].classList.remove('selected');
+  el.classList.add('selected');
+  document.getElementById('color').value = c;
+}
+function openProjectModal(id){
+  var p = state.projects.find(function(x){ return x.id === id; }), edit = !!p;
+  p = p || { name:'', description:'', color: colors[0] };
+  modal('<div class="modal-head"><h2>' + (edit ? 'Edit project' : 'New project') + '</h2><button class="icon-btn" onclick="closeModal()">&times;</button></div>' +
+    '<div class="form-grid"><div class="field full"><label>Project name</label><input id="name" value="' + esc(p.name) + '" placeholder="Example: Conveyor upgrade"></div>' +
+    '<div class="field full"><label>Description</label><textarea id="description">' + esc(p.description) + '</textarea></div>' +
+    '<div class="field full"><label>Card color</label>' + colorPicker(p.color) + '</div></div>' +
+    (edit ? '<div class="danger-zone"><button class="btn danger small" onclick="deleteProject(\'' + id + '\')">Delete project</button></div>' : '') +
+    '<div class="modal-actions"><button class="btn secondary" onclick="closeModal()">Cancel</button>' +
+    '<button class="btn" onclick="saveProject(\'' + (id || '') + '\')">Save project</button></div>');
+  document.getElementById('name').focus();
+}
+function saveProject(id){
+  var name = document.getElementById('name').value.trim();
+  if (!name) return toast('Enter a project name');
+  var data = { name: name, description: document.getElementById('description').value.trim(), color: document.getElementById('color').value };
+  if (id) Object.assign(state.projects.find(function(x){ return x.id === id; }), data);
+  else state.projects.push(Object.assign({ id: uid(), created: Date.now(), categories: [] }, data));
+  closeModal(); commit('Project saved');
+}
+function openCategoryModal(id){
+  var p = project(), c = (p.categories||[]).find(function(x){ return x.id === id; }), edit = !!c;
+  c = c || { name:'', description:'', type:'tasks', color: colors[1] };
+  modal('<div class="modal-head"><h2>' + (edit ? 'Edit list' : 'New list') + '</h2><button class="icon-btn" onclick="closeModal()">&times;</button></div>' +
+    '<div class="form-grid"><div class="field full"><label>List name</label><input id="name" value="' + esc(c.name) + '" placeholder="Example: Tasks or Parts to Buy"></div>' +
+    '<div class="field"><label>List type</label><select id="type">' +
+    '<option value="tasks" ' + (c.type === 'tasks' ? 'selected' : '') + '>Tasks / checklist</option>' +
+    '<option value="parts" ' + (c.type === 'parts' ? 'selected' : '') + '>Parts / purchases</option></select></div>' +
+    '<div class="field"><label>Card color</label>' + colorPicker(c.color) + '</div>' +
+    '<div class="field full"><label>Description</label><textarea id="description">' + esc(c.description) + '</textarea></div></div>' +
+    (edit ? '<div class="danger-zone"><button class="btn danger small" onclick="deleteCategory(\'' + id + '\')">Delete list</button></div>' : '') +
+    '<div class="modal-actions"><button class="btn secondary" onclick="closeModal()">Cancel</button>' +
+    '<button class="btn" onclick="saveCategory(\'' + (id || '') + '\')">Save list</button></div>');
+  document.getElementById('name').focus();
+}
+function saveCategory(id){
+  var name = document.getElementById('name').value.trim();
+  if (!name) return toast('Enter a list name');
+  var data = { name: name, description: document.getElementById('description').value.trim(),
+               type: document.getElementById('type').value, color: document.getElementById('color').value };
+  if (id) Object.assign(project().categories.find(function(x){ return x.id === id; }), data);
+  else project().categories.push(Object.assign({ id: uid(), items: [] }, data));
+  closeModal(); commit('List saved');
+}
+function openItemModal(id){
+  var c = category(), i = (c.items||[]).find(function(x){ return x.id === id; }), edit = !!i;
+  i = i || { name:'', notes:'', qty:1, price:0, done:false };
+  var isParts = c.type === 'parts';
+  modal('<div class="modal-head"><h2>' + (edit ? 'Edit item' : 'New item') + '</h2><button class="icon-btn" onclick="closeModal()">&times;</button></div>' +
+    '<div class="form-grid"><div class="field full"><label>' + (isParts ? 'Part or material' : 'Task') + '</label><input id="name" value="' + esc(i.name) + '"></div>' +
+    (isParts ? '<div class="field"><label>Quantity</label><input id="qty" type="number" min="0" step="1" value="' + (i.qty || 1) + '"></div>' +
+               '<div class="field"><label>Unit price</label><input id="price" type="number" min="0" step="0.01" value="' + (i.price || 0) + '"></div>' : '') +
+    '<div class="field full"><label>Notes</label><textarea id="notes">' + esc(i.notes) + '</textarea></div>' +
+    '<div class="field full"><label><input id="done" type="checkbox" ' + (i.done ? 'checked' : '') + '> ' + (isParts ? 'Purchased' : 'Completed') + '</label></div></div>' +
+    (edit ? '<div class="danger-zone"><button class="btn danger small" onclick="deleteItem(\'' + id + '\')">Delete item</button></div>' : '') +
+    '<div class="modal-actions"><button class="btn secondary" onclick="closeModal()">Cancel</button>' +
+    '<button class="btn" onclick="saveItem(\'' + (id || '') + '\')">Save item</button></div>');
+  document.getElementById('name').focus();
+}
+function saveItem(id){
+  var name = document.getElementById('name').value.trim();
+  if (!name) return toast('Enter an item name');
+  var c = category();
+  var data = { name: name, notes: document.getElementById('notes').value.trim(), done: document.getElementById('done').checked };
+  if (c.type === 'parts'){
+    data.qty   = Number(document.getElementById('qty').value) || 1;
+    data.price = Number(document.getElementById('price').value) || 0;
+  }
+  if (id) Object.assign(c.items.find(function(x){ return x.id === id; }), data);
+  else c.items.push(Object.assign({ id: uid(), created: Date.now() }, data));
+  closeModal(); commit('Item saved');
+}
+function toggleItem(id){
+  var i = category().items.find(function(x){ return x.id === id; });
+  i.done = !i.done; commit();
+}
+function deleteProject(id){
+  if (!confirm('Delete this project and every list inside it?')) return;
+  state.projects = state.projects.filter(function(x){ return x.id !== id; });
+  closeModal(); route = { page:'projects', projectId:null, categoryId:null }; commit('Project deleted');
+}
+function deleteCategory(id){
+  if (!confirm('Delete this list and all of its items?')) return;
+  var p = project();
+  p.categories = p.categories.filter(function(x){ return x.id !== id; });
+  closeModal(); route = { page:'categories', projectId:p.id, categoryId:null }; commit('List deleted');
+}
+function deleteItem(id){
+  if (!confirm('Delete this item?')) return;
+  var c = category();
+  c.items = c.items.filter(function(x){ return x.id !== id; });
+  closeModal(); commit('Item deleted');
+}
+
+/* ---------------------- backup + boot ---------------------- */
+function exportData(){
+  var blob = new Blob([JSON.stringify(state, null, 2)], { type:'application/json' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'project-cards-backup.json';
+  a.click(); URL.revokeObjectURL(a.href); toast('Backup exported');
+}
+function importData(e){
+  var f = e.target.files[0]; if (!f) return;
+  var r = new FileReader();
+  r.onload = function(){
+    try {
+      var x = JSON.parse(r.result);
+      if (!Array.isArray(x.projects)) throw new Error('bad file');
+      state = x; route = { page:'projects', projectId:null, categoryId:null }; commit('Backup imported');
+    } catch(err){ toast('That file is not a valid backup'); }
+  };
+  r.readAsText(f); e.target.value = '';
+}
+var toastTimer;
+function toast(msg){
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.classList.remove('show'); }, 2200);
+}
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeModal(); });
+document.addEventListener('visibilitychange', function(){
+  if (!document.hidden && session) pull().then(render);
+});
+state = loadLocal();
+render();
+initCloud();
+</script>
+</body>
+</html>
