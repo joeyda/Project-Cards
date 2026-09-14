@@ -99,6 +99,12 @@ select{padding:11px;border:1px solid var(--line);border-radius:12px;background:#
 .note{font-size:13px;color:var(--muted);margin-top:16px;line-height:1.5}
 .setup{background:#fffbeb;border:1px solid #fde68a;border-radius:14px;padding:16px;font-size:13px;line-height:1.6;color:#78350f;margin-top:18px}
 .setup code{background:#fff;padding:1px 5px;border-radius:5px;border:1px solid #fde68a}
+.snaps{display:grid;gap:8px;margin-top:14px;max-height:46vh;overflow:auto}
+.snap{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:12px;padding:11px 13px}
+.snap-info{flex:1;min-width:0}
+.snap-when{font-weight:750;font-size:14px}
+.snap-meta{font-size:12px;color:var(--muted);margin-top:2px}
+.snap-tag{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--brand)}
 
 /* ---- tablet ---- */
 @media(max-width:820px){
@@ -168,13 +174,15 @@ select{padding:11px;border:1px solid var(--line);border-radius:12px;background:#
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 /* =====================================================================
-   CONFIGURATION - paste your Supabase project values here
+   CONFIGURATION - Supabase project
    ===================================================================== */
-const SUPABASE_URL      = "https://zmnfyngcdnkunapfdwrl.supabase.co";   // e.g. "https://abcdefgh.supabase.co"
-const SUPABASE_ANON_KEY = "sb_publishable_zNvssY0xOy1_oRNcUXWnOA_sCjRp_hy";   // publishable / anon key (safe in the browser WITH RLS enabled)
+const SUPABASE_URL      = "https://zmnfyngcdnkunapfdwrl.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_zNvssY0xOy1_oRNcUXWnOA_sCjRp_hy";
 /* ===================================================================== */
 
 const LOCAL_KEY = 'projectCards.v2';
+const SNAP_KEY  = 'projectCards.snapshots';
+const MAX_SNAPS = 20;
 const colors = ['#2563eb','#7c3aed','#db2777','#d97706','#16a34a','#0891b2','#dc2626'];
 const cloudEnabled = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 let sb = null, session = null, channel = null, pushTimer = null, pulling = false;
@@ -192,10 +200,17 @@ function project(){ return state.projects.find(function(x){ return x.id === rout
 function category(){ var p = project(); return p && (p.categories||[]).find(function(x){ return x.id === route.categoryId; }); }
 function lineTotal(i){ return (Number(i.qty)||1) * (Number(i.price)||0); }
 function partsTotal(items){ return (items||[]).reduce(function(s,i){ return s + lineTotal(i); }, 0); }
+function countItems(s){ return (s.projects||[]).reduce(function(a,p){ return a + allItems(p).length; }, 0); }
+
+/* A pristine state is the untouched sample data or a blank slate.
+   It carries updatedAt:0 so it can NEVER win a timestamp comparison
+   against real cloud data. This is the guard that prevents a fresh
+   browser from overwriting your account. */
+function isPristine(s){ return !s || s.seeded === true; }
 
 /* ---------------------- seed + local storage ---------------------- */
 function seed(){
-  return { updatedAt: Date.now(), projects: [{
+  return { updatedAt: 0, seeded: true, projects: [{
     id: uid(), name:'Workshop Upgrade', description:'Sample project - edit or delete it', color:'#2563eb', created: Date.now(),
     categories: [
       { id: uid(), name:'Tasks', type:'tasks', description:'Work to complete', color:'#7c3aed', items:[
@@ -212,10 +227,46 @@ function loadLocal(){
 }
 function saveLocal(){ try { localStorage.setItem(LOCAL_KEY, JSON.stringify(state)); } catch(e){} }
 
+/* ---------------------- local snapshot history ---------------------- */
+function snapshots(){
+  try { var l = JSON.parse(localStorage.getItem(SNAP_KEY)); return Array.isArray(l) ? l : []; } catch(e){ return []; }
+}
+function saveSnapshot(label, source){
+  source = source || state;
+  if (isPristine(source) || !(source.projects||[]).length) return;
+  var json = JSON.stringify(source.projects);
+  var list = snapshots();
+  if (list[0] && list[0].json === json){
+    // Same content already captured. Keep the more meaningful label so
+    // entries like "before delete" are not hidden behind a generic "edit".
+    if (label && label !== 'auto' && label !== 'edit' && list[0].label !== label){
+      list[0].label = label;
+      try { localStorage.setItem(SNAP_KEY, JSON.stringify(list)); } catch(e){}
+    }
+    return;
+  }
+  list.unshift({ at: Date.now(), label: label || 'auto', json: json,
+                 projects: source.projects.length, items: countItems(source) });
+  list = list.slice(0, MAX_SNAPS);
+  try { localStorage.setItem(SNAP_KEY, JSON.stringify(list)); } catch(e){}
+}
+function restoreSnapshot(idx){
+  var s = snapshots()[idx];
+  if (!s) return;
+  if (!confirm('Restore the version from ' + new Date(s.at).toLocaleString() + '?\n\nThis replaces what is on screen now (the current version is saved as a snapshot first).')) return;
+  saveSnapshot('before restore');
+  state = { updatedAt: Date.now(), projects: JSON.parse(s.json) };
+  closeModal();
+  route = { page:'projects', projectId:null, categoryId:null }; query = '';
+  commit('Restored earlier version');
+}
+
 /* Single mutation entry point: stamp, persist locally, re-render, queue cloud push. */
 function commit(msg){
+  delete state.seeded;                 // real user data from here on
   state.updatedAt = Date.now();
   saveLocal();
+  saveSnapshot('edit');
   render();
   if (msg) toast(msg);
   queuePush();
@@ -257,24 +308,43 @@ async function afterSignIn(){
   subscribe();
   render();
 }
+
+/* Reconciliation rules, in priority order:
+   1. Cloud has data and this browser is pristine  -> take the cloud. Never push.
+   2. Cloud has data and local is genuinely newer  -> keep local, push it.
+   3. Cloud has data and is newer                  -> take the cloud.
+   4. Cloud is empty and local is real             -> push local (first sync).
+   5. Cloud is empty and local is pristine         -> do nothing, wait for a real edit. */
 async function pull(){
   if (!session) return;
   pulling = true;
   try {
     var r = await sb.from('app_state').select('data').eq('user_id', session.user.id).maybeSingle();
     if (r.error) throw r.error;
-    var local = loadLocal();
-    var localNewer = true;
-    if (r.data){
-      var remote = r.data.data || { updatedAt:0, projects:[] };
-      localNewer = Number(local.updatedAt||0) > Number(remote.updatedAt||0);
-      state = localNewer ? local : remote;
+
+    var local  = loadLocal();
+    var remote = r.data && r.data.data;
+    var remoteHasData = !!(remote && (remote.projects||[]).length);
+    var shouldPush = false;
+
+    if (remoteHasData){
+      saveSnapshot('from cloud', remote);
+      if (isPristine(local)){
+        state = remote;                                   // rule 1 - the wipe guard
+      } else if (Number(local.updatedAt||0) > Number(remote.updatedAt||0)){
+        state = local; shouldPush = true;                 // rule 2
+      } else {
+        state = remote;                                   // rule 3
+      }
     } else {
-      state = local; state.updatedAt = Date.now();
+      state = local;
+      shouldPush = !isPristine(local);                     // rules 4 and 5
     }
+
     saveLocal();
     pulling = false;
-    if (localNewer) await push(true);
+    if (shouldPush) await push(true);
+
     setSync('ok','Synced as ' + session.user.email);
     setTimeout(function(){ if (session) setSync('',''); }, 2500);
   } catch(e){
@@ -290,6 +360,7 @@ function queuePush(){
 }
 async function push(quiet){
   if (!session) return;
+  if (isPristine(state)) return;        // never publish untouched sample data
   try {
     var r = await sb.from('app_state').upsert({
       user_id: session.user.id,
@@ -309,6 +380,7 @@ function subscribe(){
     function(payload){
       var remote = payload['new'] && payload['new'].data;
       if (remote && Number(remote.updatedAt||0) > Number(state.updatedAt||0)){
+        saveSnapshot('before remote update');
         state = remote; saveLocal(); render();
         setSync('ok','Updated from another device');
         setTimeout(function(){ if (session) setSync('',''); }, 2200);
@@ -329,7 +401,7 @@ function authView(){
     '<div class="field full"><label>Email</label><input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com"></div>' +
     '<div class="field full" style="margin-top:12px"><label>Password</label><input id="authPass" type="password" placeholder="At least 6 characters" onkeydown="if(event.key===\'Enter\')doAuth()"></div>' +
     '<button class="btn block" style="margin-top:18px" onclick="doAuth()">' + (authTab==='signin'?'Sign in':'Create account') + '</button>' +
-    '<p class="note">Your data is stored under your own account and is not visible to anyone else, even though the page itself is public.</p>' +
+    '<p class="note">Signing in pulls your projects down from the cloud. Your data is stored under your own account and is not visible to anyone else, even though the page itself is public.</p>' +
     '</div></div>';
 }
 async function doAuth(){
@@ -348,15 +420,31 @@ function openAccountModal(){
   if (!cloudEnabled){
     return modal('<div class="modal-head"><h2>Cloud sync is off</h2><button class="icon-btn" onclick="closeModal()">&times;</button></div>' +
       '<p class="note" style="margin-top:0">This copy is running in local-only mode, so projects live in this browser alone.</p>' +
-      '<div class="setup"><strong>To turn on sync:</strong> create a free Supabase project, then open this HTML file in a text editor and fill in <code>SUPABASE_URL</code> and <code>SUPABASE_ANON_KEY</code> near the top of the script. Re-upload the file and sign in.</div>' +
       '<div class="modal-actions"><button class="btn" onclick="closeModal()">Close</button></div>');
   }
   var who = session ? esc(session.user.email) : 'Not signed in';
+  var snapCount = snapshots().length;
   modal('<div class="modal-head"><h2>Account</h2><button class="icon-btn" onclick="closeModal()">&times;</button></div>' +
     '<p class="note" style="margin-top:0">Signed in as <strong>' + who + '</strong></p>' +
-    (session ? '<button class="btn secondary block" style="margin-top:14px" onclick="forcePull()">Refresh from cloud</button>' +
+    '<button class="btn secondary block" style="margin-top:14px" onclick="openHistoryModal()">Version history (' + snapCount + ')</button>' +
+    '<button class="btn secondary block" style="margin-top:9px" onclick="exportData()">Download a backup file</button>' +
+    (session ? '<button class="btn secondary block" style="margin-top:9px" onclick="forcePull()">Refresh from cloud</button>' +
                '<div class="danger-zone"><button class="btn danger small" onclick="signOut()">Sign out</button></div>' : '') +
     '<div class="modal-actions"><button class="btn" onclick="closeModal()">Close</button></div>');
+}
+function openHistoryModal(){
+  var list = snapshots();
+  var body = list.length ? '<div class="snaps">' + list.map(function(s, i){
+      return '<div class="snap"><div class="snap-info">' +
+        '<div class="snap-when">' + esc(new Date(s.at).toLocaleString()) + '</div>' +
+        '<div class="snap-meta">' + s.projects + ' projects, ' + s.items + ' items &middot; <span class="snap-tag">' + esc(s.label) + '</span></div>' +
+        '</div><button class="btn small" onclick="restoreSnapshot(' + i + ')">Restore</button></div>';
+    }).join('') + '</div>'
+    : '<p class="note" style="margin-top:0">No snapshots yet. They are captured automatically as you edit and before any cloud update replaces your data.</p>';
+  modal('<div class="modal-head"><h2>Version history</h2><button class="icon-btn" onclick="closeModal()">&times;</button></div>' +
+    '<p class="note" style="margin-top:0">The last ' + MAX_SNAPS + ' versions kept in this browser.</p>' + body +
+    '<div class="modal-actions"><button class="btn secondary" onclick="openAccountModal()">Back</button>' +
+    '<button class="btn" onclick="closeModal()">Close</button></div>');
 }
 async function forcePull(){ closeModal(); await pull(); render(); toast('Refreshed'); }
 async function signOut(){ closeModal(); unsubscribe(); await sb.auth.signOut(); session = null; state = loadLocal(); render(); }
@@ -642,11 +730,13 @@ function toggleItem(id){
 }
 function deleteProject(id){
   if (!confirm('Delete this project and every list inside it?')) return;
+  saveSnapshot('before delete');
   state.projects = state.projects.filter(function(x){ return x.id !== id; });
   closeModal(); route = { page:'projects', projectId:null, categoryId:null }; query=''; commit('Project deleted');
 }
 function deleteCategory(id){
   if (!confirm('Delete this list and all of its items?')) return;
+  saveSnapshot('before delete');
   var p = project();
   p.categories = p.categories.filter(function(x){ return x.id !== id; });
   closeModal(); route = { page:'categories', projectId:p.id, categoryId:null }; query=''; commit('List deleted');
@@ -663,7 +753,7 @@ function exportData(){
   var blob = new Blob([JSON.stringify(state, null, 2)], { type:'application/json' });
   var a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'project-cards-backup.json';
+  a.download = 'project-cards-backup-' + new Date().toISOString().slice(0,10) + '.json';
   a.click(); URL.revokeObjectURL(a.href); toast('Backup exported');
 }
 function importData(e){
@@ -673,7 +763,10 @@ function importData(e){
     try {
       var x = JSON.parse(r.result);
       if (!Array.isArray(x.projects)) throw new Error('bad file');
-      state = x; route = { page:'projects', projectId:null, categoryId:null }; query=''; commit('Backup imported');
+      saveSnapshot('before import');
+      state = { updatedAt: Date.now(), projects: x.projects };
+      route = { page:'projects', projectId:null, categoryId:null }; query='';
+      commit('Backup imported');
     } catch(err){ toast('That file is not a valid backup'); }
   };
   r.readAsText(f); e.target.value = '';
